@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+#include <libgen.h>
 #include <err.h>
 
 #include <gif_lib.h>
@@ -14,6 +15,8 @@
 
 #define CLIP(val, min, max)	\
     ((val) > (max) ? (max) : ((val) < (min) ? (min) : (val)))
+
+static const char *progname = NULL;
 
 /* 色視覚輝度推定近似式によるグレースケール化 */
 static inline int
@@ -120,13 +123,14 @@ usage(void)
 
     fprintf(stderr,
       "Usage: %s [-c contrast (-100..100)] [-e] input.gif output.gif\n",
-      getprogname());
+      progname != NULL ? progname : "animegif2mono");
     exit(EXIT_FAILURE);
 }
 
 int
 main(int argc, char *argv[])
 {
+    char *progpath;
     int opt;
     int contrast = 0;
     int edge_mode = 0;
@@ -142,7 +146,8 @@ main(int argc, char *argv[])
     int i, frame;
     uint8_t *canvas, *gray, *edge, *mono;
 
-    setprogname(argv[0]);
+    progpath = strdup(argv[0]);
+    progname = basename(progpath);
 
     while ((opt = getopt(argc, argv, "c:e")) != -1) {
         char *endptr;
