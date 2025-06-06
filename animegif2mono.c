@@ -16,6 +16,13 @@
 #define CLIP(val, min, max)	\
     ((val) > (max) ? (max) : ((val) < (min) ? (min) : (val)))
 
+#define DITHER_FS	0
+#define DITHER_BAYER	1
+#define DITHER_ATKINSON	2
+#define DITHER_STUCKI	3
+#define DITHER_BURKES	4
+#define DITHER_MAX	DITHER_BURKES
+
 static const char *progname = NULL;
 
 /* 色視覚輝度推定近似式によるグレースケール化 */
@@ -38,7 +45,7 @@ adjust_contrast(int gray, int contrast)
 
 /* Floyd Steinberg モノクロディザ2値化処理 */
 static void
-do_dither(uint8_t *gray, uint8_t *mono, int w, int h)
+fs_dither(uint8_t *gray, uint8_t *mono, int w, int h)
 {
     int i, x, y;
 
@@ -72,6 +79,197 @@ do_dither(uint8_t *gray, uint8_t *mono, int w, int h)
     }
     for (i = 0; i < w * h; i++) {
         mono[i] = gray[i] >= BW_THRESHOLD ? 1 : 0;
+    }
+}
+
+/* Bayer 4x4 モノクロディザ2値化処理 */ 
+static void
+bayer_dither(uint8_t *gray, uint8_t *mono, int w, int h)
+{
+    int i, x, y;
+    static const int bayer4[4][4] = {
+        {  15, 135,  45, 165 },
+        { 195,  75, 225, 105 },
+        {  60, 180,  30, 150 },
+        { 240, 120, 210,  90 }
+    };
+
+    for (y = 0; y < h; y++) {
+        for (x = 0; x < w; x++) {
+            int threshold = bayer4[y % 4][x % 4];
+            gray[y * w + x] = (gray[y * w + x] > threshold) ? 255 : 0;
+        }
+    }
+    for (i = 0; i < w * h; i++) {
+        mono[i] = gray[i] == 255 ? 1 : 0;
+    }
+}
+
+/* Atkinson モノクロディザ2値化処理 */
+static void
+atkinson_dither(uint8_t *gray, uint8_t *mono, int w, int h)
+{
+    int i, x, y;
+
+    for (y = 0; y < h - 2; y++) {
+        for (x = 1; x < w - 2; x++) {
+            int old, new, error, gval;
+
+            i = y * w + x;
+            old = gray[i];
+            new = old < BW_THRESHOLD ? 0 : 255;
+            error = (old - new) / 8;
+            gray[i]          = new;
+            if (x + 1 < w) {
+                gval = gray[i + 1] + error;
+                gray[i + 1] = CLIP(gval, 0, 255);
+            }
+            if (x + 2 < w) {
+                gval = gray[i + 2] + error;
+                gray[i + 2] = CLIP(gval, 0, 255);
+            }
+            if (y + 1 < h) {
+                if (x - 1 >= 0) {
+                    gval = gray[i + w - 1] + error;
+                    gray[i + w - 1] = CLIP(gval, 0, 255);
+                }
+                gval = gray[i + w] + error; 
+                gray[i + w] = CLIP(gval, 0, 255);
+                if (x + 1 < w) {
+                    gval = gray[i + w + 1] + error;
+                    gray[i + w + 1] = CLIP(gval, 0, 255);
+                }
+            }
+            if (y + 2 < h) {
+                gval = gray[i + 2 * w] + error;
+                gray[i + 2 * w] = CLIP(gval, 0, 255);
+            }
+        }
+    }
+    for (i = 0; i < w * h; i++) {
+        mono[i] = gray[i] == 255 ? 1 : 0;
+    }
+}
+
+/* Stucki モノクロディザ2値化処理 */
+static void
+stucki_dither(uint8_t *gray, uint8_t *mono, int w, int h)
+{
+    int i, x, y;
+
+    for (y = 0; y < h; y++) {
+        for (x = 0; x < w; x++) {
+            int old, new, error, gval;
+
+            i = y * w + x;
+            old = gray[i];
+            new = old < 128 ? 0 : 255;
+            error = old - new;
+            gray[i] = new;
+
+            if (x + 1 < w) {
+                gval = gray[i + 1] + (error * 80 + 5) / 420;
+                gray[i + 1] = CLIP(gval, 0, 255);
+            }
+            if (x + 2 < w) {
+                gval = gray[i + 2] + (error * 40 + 5) / 420;
+                gray[i + 2] = CLIP(gval, 0, 255);
+            }
+            if (y + 1 < h) {
+                if (x - 2 >= 0) {
+                    gval = gray[i + w - 2] + (error * 20 + 5) / 420;
+                    gray[i + w - 2] = CLIP(gval, 0, 255);
+                }
+                if (x - 1 >= 0) {
+                    gval = gray[i + w - 1] + (error * 40 + 5) / 420;
+                    gray[i + w - 1] = CLIP(gval, 0, 255);
+                }
+                gval = gray[i + w] + (error * 80 + 5) / 420;
+                gray[i + w] = CLIP(gval, 0, 255);
+                if (x + 1 < w) {
+                    gval = gray[i + w + 1] + (error * 40 + 5) / 420;
+                    gray[i + w + 1] = CLIP(gval, 0, 255);
+                }
+                if (x + 2 < w) {
+                    gval = gray[i + w + 2] + (error * 20 + 5) / 420;
+                    gray[i + w + 2] = CLIP(gval, 0, 255);
+                }
+            }
+            if (y + 2 < h) {
+                if (x - 2 >= 0) {
+                    gval = gray[i + w * 2 - 2] + (error * 10 + 5) / 420;
+                    gray[i + w * 2 - 2] = CLIP(gval, 0, 255);
+                }
+                if (x - 1 >= 0) {
+                    gval = gray[i + w * 2 - 1] + (error * 20 + 5) / 420;
+                    gray[i + w * 2 - 1] = CLIP(gval, 0, 255);
+                }
+                gval = gray[i + w * 2] + (error * 40 + 5) / 420;
+                gray[i + w * 2] = CLIP(gval, 0, 255);
+                if (x + 1 < w) {
+                    gval = gray[i + w * 2 + 1] + (error * 20 + 5) / 420;
+                    gray[i + w * 2 + 1] = CLIP(gval, 0, 255);
+                }
+                if (x + 2 < w) {
+                    gval = gray[i + w * 2 + 2] + (error * 10 + 5) / 420;
+                    gray[i + w * 2 + 2] = CLIP(gval, 0, 255);
+                }
+            }
+        }
+    }
+    for (i = 0; i < w * h; i++) {
+        mono[i] = gray[i] == 255 ? 1 : 0;
+    }
+}
+
+/* Burkes モノクロディザ2値化処理 */
+static void
+burkes_dither(uint8_t *gray, uint8_t *mono, int w, int h)
+{
+    int i, x, y;
+
+    for (y = 0; y < h; y++) {
+        for (x = 0; x < w; x++) {
+            int old, new, error, gval;
+
+            i = y * w + x;
+            old = gray[i];
+            new = old < 128 ? 0 : 255;
+            error = old - new;
+            gray[i] = new;
+
+            if (x + 1 < w) {
+                gval = gray[i + 1] + (error * 80 + 5) / 320;
+                gray[i + 1] = CLIP(gval, 0, 255);
+            }
+            if (x + 2 < w) {
+                gval = gray[i + 2] + (error * 40 + 5) / 320;
+                gray[i + 2] = CLIP(gval, 0, 255);
+            }
+            if (y + 1 < h) {
+                if (x - 2 >= 0) {
+                    gval = gray[i + w - 2] + (error * 20 + 5) / 320;
+                    gray[i + w - 2] = CLIP(gval, 0, 255);
+                }
+                if (x - 1 >= 0) {
+                    gval = gray[i + w - 1] + (error * 40 + 5) / 320;
+                    gray[i + w - 1] = CLIP(gval, 0, 255);
+                }
+                gval = gray[i + w] + (error * 80 + 5) / 320;
+                gray[i + w] = CLIP(gval, 0, 255);
+                if (x + 1 < w) {
+                    gval = gray[i + w + 1] + (error * 40 + 5) / 320;
+                    gray[i + w + 1] = CLIP(gval, 0, 255);
+                }
+                if (x + 2 < w) {
+                    gval = gray[i + w + 2] + (error * 20 + 5) / 320;
+                    gray[i + w + 2] = CLIP(gval, 0, 255);
+                }
+            }
+        }
+    }
+    for (i = 0; i < w * h; i++) {
+        mono[i] = gray[i] == 255 ? 1 : 0;
     }
 }
 
@@ -122,7 +320,8 @@ usage(void)
 {
 
     fprintf(stderr,
-      "Usage: %s [-c contrast (-100..100)] [-e] input.gif output.gif\n",
+      "Usage: %s [-c contrast (-100..100)] [-d dither_method (0..5) [-e] "
+      "input.gif output.gif\n",
       progname != NULL ? progname : "animegif2mono");
     exit(EXIT_FAILURE);
 }
@@ -133,6 +332,7 @@ main(int argc, char *argv[])
     char *progpath;
     int opt;
     int contrast = 0;
+    int dither_method = 0;
     int edge_mode = 0;
     const char *input_path, *output_path;
     int error;
@@ -149,12 +349,19 @@ main(int argc, char *argv[])
     progpath = strdup(argv[0]);
     progname = basename(progpath);
 
-    while ((opt = getopt(argc, argv, "c:e")) != -1) {
+    while ((opt = getopt(argc, argv, "c:d:e")) != -1) {
         char *endptr;
         switch (opt) {
         case 'c':
             contrast = (int)strtol(optarg, &endptr, 10);
             if (*endptr != '\0' || contrast < -100 || contrast > 100) {
+                usage();
+            }
+            break;
+        case 'd':
+            dither_method = (int)strtol(optarg, &endptr, 10);
+            if (*endptr != '\0' ||
+              dither_method < 0 || dither_method > DITHER_MAX) {
                 usage();
             }
             break;
@@ -321,7 +528,24 @@ main(int argc, char *argv[])
         }
 
         /* グレースケール画像→ディザ2値化 */
-        do_dither(gray, mono, sw, sh);
+        switch (dither_method) {
+        case DITHER_FS:
+        default:
+            fs_dither(gray, mono, sw, sh);
+            break;
+        case DITHER_BAYER:
+            bayer_dither(gray, mono, sw, sh);
+            break;
+        case DITHER_ATKINSON:
+            atkinson_dither(gray, mono, sw, sh);
+            break;
+        case DITHER_STUCKI:
+            stucki_dither(gray, mono, sw, sh);
+            break;
+        case DITHER_BURKES:
+            burkes_dither(gray, mono, sw, sh);
+            break;
+        }
 
         /* 各フレームの Graphic Control Extension を出力 */
         for (i = 0; i < image->ExtensionBlockCount; i++) {
