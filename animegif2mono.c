@@ -52,27 +52,27 @@ fs_dither(uint8_t *gray, uint8_t *mono, int w, int h)
 
     for (y = 0; y < h; y++) {
         for (x = 0; x < w; x++) {
-            int idx = y * w + x;
-            int old_pixel = gray[idx];
-            int new_pixel = old_pixel < BW_THRESHOLD ? 0 : 255;
-            int err = old_pixel - new_pixel;
-            int gval;
+            int old, new, error, gval;
 
-            gray[idx] = new_pixel;
+            i = y * w + x;
+            old = gray[i];
+            new = old < BW_THRESHOLD ? 0 : 255;
+            error = old - new;
+            gray[i] = new;
 
             if (x + 1 < w) {
-                gval = gray[y * w + (x + 1)] + (err * 70 + 5) / 160;
+                gval = gray[y * w + (x + 1)] + (error * 70 + 5) / 160;
                 gray[y * w + (x + 1)] = CLIP(gval, 0, 255);
             }
             if (y + 1 < h) {
                 if (x > 0) {
-                    gval = gray[(y + 1) * w + (x - 1)] + (err * 30 + 5) / 160;
+                    gval = gray[(y + 1) * w + (x - 1)] + (error * 30 + 5) / 160;
                     gray[(y + 1) * w + (x - 1)] = CLIP(gval, 0, 255);
                 }
-                gval = gray[(y + 1) * w + x] + (err * 50 + 5) / 160;
+                gval = gray[(y + 1) * w + x] + (error * 50 + 5) / 160;
                 gray[(y + 1) * w + x] = CLIP(gval, 0, 255);
                 if (x + 1 < w) {
-                    gval = gray[(y + 1) * w + (x + 1)] + (err * 10 + 5) / 160;
+                    gval = gray[(y + 1) * w + (x + 1)] + (error * 10 + 5) / 160;
                     gray[(y + 1) * w + (x + 1)] = CLIP(gval, 0, 255);
                 }
             }
@@ -120,7 +120,8 @@ atkinson_dither(uint8_t *gray, uint8_t *mono, int w, int h)
             old = gray[i];
             new = old < BW_THRESHOLD ? 0 : 255;
             error = (old - new) / 8;
-            gray[i]          = new;
+            gray[i] = new;
+
             if (x + 1 < w) {
                 gval = gray[i + 1] + error;
                 gray[i + 1] = CLIP(gval, 0, 255);
@@ -164,7 +165,7 @@ stucki_dither(uint8_t *gray, uint8_t *mono, int w, int h)
 
             i = y * w + x;
             old = gray[i];
-            new = old < 128 ? 0 : 255;
+            new = old < BW_THRESHOLD ? 0 : 255;
             error = old - new;
             gray[i] = new;
 
@@ -235,7 +236,7 @@ burkes_dither(uint8_t *gray, uint8_t *mono, int w, int h)
 
             i = y * w + x;
             old = gray[i];
-            new = old < 128 ? 0 : 255;
+            new = old < BW_THRESHOLD ? 0 : 255;
             error = old - new;
             gray[i] = new;
 
