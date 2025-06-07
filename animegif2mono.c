@@ -112,8 +112,8 @@ atkinson_dither(uint8_t *gray, uint8_t *mono, int w, int h)
 {
     int i, x, y;
 
-    for (y = 0; y < h - 2; y++) {
-        for (x = 1; x < w - 2; x++) {
+    for (y = 0; y < h; y++) {
+        for (x = 1; x < w; x++) {
             int old, new, error, gval;
 
             i = y * w + x;
