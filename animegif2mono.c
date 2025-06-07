@@ -361,9 +361,23 @@ usage(void)
 {
 
     fprintf(stderr,
-      "Usage: %s [-c contrast (-100..100)] [-d dither_method (0..%d)] [-e] "
-      "input.gif output.gif\n",
-      progname != NULL ? progname : "animegif2mono", DITHER_MAX);
+      "Usage: %s [-c contrast] [-d method] [-e] input.gif output.gif\n"
+      "\n"
+      "Options:\n"
+      "  -c contrast  Set contrast adjustment (-100 to 100, default: 0)\n"
+      "  -d method    Select dithering algorithm (default: 0):\n"
+      "                 0: Floyd-Steinberg\n"
+      "                 1: Bayer (4x4)\n"
+      "                 2: Atkinson\n"
+      "                 3: Stucki\n"
+      "                 4: Burkes\n"
+      "                 5: Sierra Lite\n"
+      "  -e           Enable edge detection (Sobel filter)\n"
+      "\n"
+      "Arguments:\n"
+      "  input.gif        Input animated GIF file\n"
+      "  output.gif       Output monochrome animated GIF file\n",
+      progname != NULL ? progname : "animegif2mono");
     exit(EXIT_FAILURE);
 }
 
