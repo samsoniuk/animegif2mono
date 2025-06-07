@@ -482,24 +482,21 @@ main(int argc, char *argv[])
     for (frame = 0; frame < gif_in->ImageCount; frame++) {
         SavedImage *image = &gif_in->SavedImages[frame];
         GifImageDesc *d = &image->ImageDesc;
+        GraphicsControlBlock gcb;
         int fw = d->Width;
         int fh = d->Height;
-        int transparent_index = -1;
+        int transparent_index = NO_TRANSPARENT_COLOR;
         int x, y;
         ColorMapObject *cm;
 
         /* 各フレームの透明色インデックスを抽出 */
-        for (i = 0; i < image->ExtensionBlockCount; i++) {
-            ExtensionBlock *ext = &image->ExtensionBlocks[i];
-
-            if (ext->Function == GRAPHICS_EXT_FUNC_CODE &&
-              ext->ByteCount == 4) {
-                /* Transparent Color Flag をチェック */
-                if ((ext->Bytes[0] & GCE_TCF) != 0) {
-                    /* [3]: Transparent Color Index */
-                    transparent_index = (uint8_t)ext->Bytes[3];
-                }
-            }
+        if (DGifSavedExtensionToGCB(gif_in, frame, &gcb) == GIF_ERROR) {
+            fprintf(stderr, "DGifSavedExtensionToGCB failed: %s\n",
+              GifErrorString(gif_in->Error));
+            exit(EXIT_FAILURE);
+        }
+        if (gcb.TransparentColor != NO_TRANSPARENT_COLOR) {
+            transparent_index = gcb.TransparentColor;
         }
 
         /* フレーム別カラーマップがない場合はグローバルカラーマップを使用 */
