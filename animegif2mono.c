@@ -38,8 +38,13 @@ rgb_to_gray(int r, int g, int b)
 static int
 adjust_contrast(int gray, int contrast)
 {
-    double factor = (259.0 * (contrast + 255.0)) / (255.0 * (259.0 - contrast));
-    int new_val = (int)(factor * (gray - 128) + 128);
+    int factor, temp, new_val;
+
+#define SCALE	0x1000	/* 12ビットあれば 0〜255 の出力で誤差は出ない */
+
+    factor = ((259 * (contrast + 255)) * SCALE) / (255 * (259 - contrast));
+    temp = factor * (gray - 128);
+    new_val = (temp / SCALE) + 128;
 
     return CLIP(new_val, 0, 255);
 }
