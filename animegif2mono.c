@@ -418,24 +418,21 @@ main(int argc, char *argv[])
     /* 入力GIF画像オープン */
     gif_in = DGifOpenFileName(input_path, &error);
     if (gif_in == NULL) {
-        fprintf(stderr, "DGifOpenFileName failed: %s\n",
+        errx(EXIT_FAILURE, "DGifOpenFileName failed: %s",
           GifErrorString(error));
-        exit(EXIT_FAILURE);
     }
 
     /* 画像ファイルを内部表現データに取り込み */
     if (DGifSlurp(gif_in) == GIF_ERROR) {
-        fprintf(stderr, "DGifSlurp failed: %s\n",
+        errx(EXIT_FAILURE, "DGifSlurp failed: %s",
           GifErrorString(gif_in->Error));
-        exit(EXIT_FAILURE);
     }
 
     /* 出力GIF画像オープン */
     gif_out = EGifOpenFileName(output_path, 0, &error);
     if (gif_out == NULL) {
-        fprintf(stderr, "EGifOpenFileName failed: %s\n",
+        errx(EXIT_FAILURE, "EGifOpenFileName failed: %s",
           GifErrorString(error));
-        exit(EXIT_FAILURE);
     }
 
     /* 出力画像用モノクロカラーマップ */
@@ -445,9 +442,8 @@ main(int argc, char *argv[])
     sw = gif_in->SWidth;
     sh = gif_in->SHeight;
     if (EGifPutScreenDesc(gif_out, sw, sh, 0, 0, mono_map) == GIF_ERROR) {
-        fprintf(stderr, "EGifPutScreenDesc failed: %s\n",
+        errx(EXIT_FAILURE, "EGifPutScreenDesc failed: %s",
           GifErrorString(gif_out->Error));
-        exit(EXIT_FAILURE);
     }
 
     /* 出力GIFの Application Extension を出力（入力GIF画像のまま） */
@@ -456,9 +452,8 @@ main(int argc, char *argv[])
         if (ext->Function == APPLICATION_EXT_FUNC_CODE) {
             if (EGifPutExtension(gif_out, ext->Function, ext->ByteCount,
               ext->Bytes) == GIF_ERROR) {
-                fprintf(stderr, "EGifPutExtension (APPL) failed: %s\n",
+                errx(EXIT_FAILURE, "EGifPutExtension (APPL) failed: %s",
                   GifErrorString(gif_out->Error));
-                exit(EXIT_FAILURE);
             }
         }
     }
@@ -491,9 +486,8 @@ main(int argc, char *argv[])
 
         /* 各フレームの透明色インデックスを抽出 */
         if (DGifSavedExtensionToGCB(gif_in, frame, &gcb) == GIF_ERROR) {
-            fprintf(stderr, "DGifSavedExtensionToGCB failed: %s\n",
+            errx(EXIT_FAILURE, "DGifSavedExtensionToGCB failed: %s",
               GifErrorString(gif_in->Error));
-            exit(EXIT_FAILURE);
         }
         if (gcb.TransparentColor != NO_TRANSPARENT_COLOR) {
             transparent_index = gcb.TransparentColor;
@@ -592,9 +586,8 @@ main(int argc, char *argv[])
                 }
                 if (EGifPutExtension(gif_out, ext->Function, ext->ByteCount,
                   ext->Bytes) == GIF_ERROR) {
-                    fprintf(stderr, "EGifPutExtension (GRAPH) failed: %s\n",
+                    errx(EXIT_FAILURE, "EGifPutExtension (GRAPH) failed: %s",
                       GifErrorString(gif_out->Error));
-                    exit(EXIT_FAILURE);
                 }
             }
         }
@@ -602,17 +595,15 @@ main(int argc, char *argv[])
         /* 各フレームの Image Block の画像情報を出力（サイズはGIF画像全体） */
         if (EGifPutImageDesc(gif_out, 0, 0, sw, sh, false, mono_map)
             == GIF_ERROR) {
-            fprintf(stderr, "EGifPutImageDesc failed: %s\n",
+            errx(EXIT_FAILURE, "EGifPutImageDesc failed: %s",
               GifErrorString(gif_out->Error));
-            exit(EXIT_FAILURE);
         }
 
         /* 各フレームの Image Block の Image Data に2値化後イメージを出力 */
         for (y = 0; y < sh; y++) {
             if (EGifPutLine(gif_out, &mono[y * sw], sw) == GIF_ERROR) {
-                fprintf(stderr, "EGifPutLine failed: %s\n",
+                errx(EXIT_FAILURE, "EGifPutLine failed: %s",
                   GifErrorString(gif_out->Error));
-                exit(EXIT_FAILURE);
             }
         }
     }
