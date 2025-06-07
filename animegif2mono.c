@@ -320,9 +320,9 @@ usage(void)
 {
 
     fprintf(stderr,
-      "Usage: %s [-c contrast (-100..100)] [-d dither_method (0..5) [-e] "
+      "Usage: %s [-c contrast (-100..100)] [-d dither_method (0..%d)] [-e] "
       "input.gif output.gif\n",
-      progname != NULL ? progname : "animegif2mono");
+      progname != NULL ? progname : "animegif2mono", DITHER_MAX);
     exit(EXIT_FAILURE);
 }
 
