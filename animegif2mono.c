@@ -21,7 +21,8 @@
 #define DITHER_ATKINSON	2
 #define DITHER_STUCKI	3
 #define DITHER_BURKES	4
-#define DITHER_MAX	DITHER_BURKES
+#define DITHER_SIERRA	5
+#define DITHER_MAX	DITHER_SIERRA
 
 static const char *progname = NULL;
 
@@ -265,6 +266,40 @@ burkes_dither(uint8_t *gray, uint8_t *mono, int w, int h)
                     gval = gray[i + w + 2] + (error * 20 + 5) / 320;
                     gray[i + w + 2] = CLIP(gval, 0, 255);
                 }
+            }
+        }
+    }
+    for (i = 0; i < w * h; i++) {
+        mono[i] = gray[i] == 255 ? 1 : 0;
+    }
+}
+
+/* Sierra Lite モノクロディザ2値化処理 */
+static void
+sierra_lite_dither(uint8_t *gray, uint8_t *mono, int w, int h) {
+    int i, x, y;
+
+    for (y = 0; y < h; y++) {
+        for (x = 0; x < w; x++) {
+            int old, new, error, gval;
+
+            i = y * w + x;
+            old = gray[i];
+            new = old < BW_THRESHOLD ? 0 : 255;
+            error = old - new;
+            gray[i] = new;
+
+            if (x + 1 < w) {
+                gval = gray[i + 1] + (error * 20 + 5) / 40;
+                gray[i + 1] = CLIP(gval, 0, 255);
+            }
+            if (y + 1 < h) {
+                if (x > 0) {
+                    gval = gray[(y + 1) * w + x - 1] + (error * 10 + 5) / 40;
+                    gray[(y + 1) * w + x - 1] = CLIP(gval, 0, 255);
+                }
+                gval = gray[(y + 1) * w + x] + (error * 10 + 5) / 40;
+                gray[(y + 1) * w + x] = CLIP(gval, 0, 255);
             }
         }
     }
@@ -544,6 +579,9 @@ main(int argc, char *argv[])
             break;
         case DITHER_BURKES:
             burkes_dither(gray, mono, sw, sh);
+            break;
+        case DITHER_SIERRA:
+            sierra_lite_dither(gray, mono, sw, sh);
             break;
         }
 
