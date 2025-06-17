@@ -455,12 +455,17 @@ main(int argc, char *argv[])
           GifErrorString(error));
     }
 
-    /* 出力画像用モノクロカラーマップ */
+    /* 出力GIFのバージョンを 89a に設定 (GCE, アニメーション使用) */
+    EGifSetGifVersion(gif_out, "89a");
+
+    /* 出力画像用モノクロカラーマップ設定 */
     mono_map = GifMakeMapObject(2, mono_colors);
 
-    /* 出力GIFの GIF Header 画像情報を出力（2値化以外入力GIF画像のまま） */
+    /* 出力画像サイズ設定（入力画像サイズと同じ） */
     sw = gif_in->SWidth;
     sh = gif_in->SHeight;
+
+    /* 出力GIFの GIF Header 画像情報を出力 */
     if (EGifPutScreenDesc(gif_out, sw, sh, 0, 0, mono_map) == GIF_ERROR) {
         errx(EXIT_FAILURE, "EGifPutScreenDesc failed: %s",
           GifErrorString(gif_out->Error));
