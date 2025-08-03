@@ -373,6 +373,7 @@ usage(void)
       "                 4: Burkes\n"
       "                 5: Sierra Lite\n"
       "  -e           Enable edge detection (Sobel filter)\n"
+      "  -l           Loop mode (repeats forever)\n"
       "\n"
       "Arguments:\n"
       "  input.gif        Input animated GIF file\n"
@@ -389,6 +390,7 @@ main(int argc, char *argv[])
     int contrast = 0;
     int dither_method = 0;
     int edge_mode = 0;
+    int loop_mode = 0;
     const char *input_path, *output_path;
     int error;
     GifFileType *gif_in, *gif_out;
@@ -404,7 +406,7 @@ main(int argc, char *argv[])
     progpath = strdup(argv[0]);
     progname = basename(progpath);
 
-    while ((opt = getopt(argc, argv, "c:d:e")) != -1) {
+    while ((opt = getopt(argc, argv, "c:d:e:l")) != -1) {
         char *endptr;
         switch (opt) {
         case 'c':
@@ -422,6 +424,9 @@ main(int argc, char *argv[])
             break;
         case 'e':
             edge_mode = 1;
+            break;
+        case 'l':
+            loop_mode = 1;
             break;
         default:
             usage();
@@ -481,6 +486,21 @@ main(int argc, char *argv[])
                   GifErrorString(gif_out->Error));
             }
         }
+    }
+
+    /* make it loop! */
+    if(loop_mode) {
+        // for the future! now zero (infinite loop) is enough...
+        int LOOP_COUNT=0;
+
+        // add Netscape looping extension
+        unsigned char ext_data[14] = {
+            'N', 'E', 'T', 'S', 'C', 'A', 'P', 'E', '2', '.', '0', // "NETSCAPE2.0"
+            0x01,                                                  // Sub-block ID for looping
+            (LOOP_COUNT & 0xFF),                                   // Low byte of loop count
+            (LOOP_COUNT >> 8)                                      // High byte of loop count
+        };
+        EGifPutExtension(gif_out, APPLICATION_EXT_FUNC_CODE, 14, ext_data);
     }
 
     /* 前フレーム保持分を含めたグレースケール画像データ */
